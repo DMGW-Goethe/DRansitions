@@ -64,6 +64,8 @@ class xSM(GenericPotential3D):
         soft scale ~g T. The desired precision can be chosen by adjusting LoopOrderParameters when initializing the class.
         '''
         g2Sq, g1Sq, yt1Sq, mPhiSq, lambdaPhi, mSSq, lambdaS, lambdaMix, g3Sq = self.Get4Dparams(T)
+        # TODO Why sqrt here. The soft matching parameters should all depend on the squared paremeters
+        # could be better put out by DRalgo mathematica file
         g1 = np.sqrt(g1Sq)
         g2 = np.sqrt(g2Sq)
         g3 = np.sqrt(g3Sq)
@@ -433,7 +435,7 @@ class xSM(GenericPotential3D):
         mZBarSq = 1 / 4 * (g3BarSq + g3PrimeBarSq) * PhiBar ** 2
         mGBarSq = mPhi3BarSq + lambdaPhi3Bar * PhiBar ** 2 + 1 / 2 * lambdaMix3Bar * Sbar ** 2
 
-        thetaBar = 0
+        thetaBar = self.thetaBar
         ct = np.cos(thetaBar)
         st = np.sin(thetaBar)
 
@@ -452,6 +454,7 @@ class xSM(GenericPotential3D):
 
         '''
         Tree-level part of the potential
+        # TODO make own function for this
         '''
         V_0 = (
             + 1 / 2 * mPhi3BarSq * PhiBar ** 2
@@ -462,6 +465,7 @@ class xSM(GenericPotential3D):
 
         '''
         One-loop part of the potential
+        # TODO make own function for this inherting from GenericPotential3D
         '''
         V_1 = (
             + 2 * (D - 1) * GenericPotential3D().J_3(mWBarSq)
