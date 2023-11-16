@@ -2,16 +2,34 @@ import scipy.special
 from BetaFunctions import *
 from scipy import special
 from numpy.lib.scimath import sqrt as csqrt
+from cosmoTransitions import generic_potential
+from abc import ABC, abstractmethod ## Abstract Base Class
 
-class GenericPotential3D:
+class GenericPotential3D(ABC,generic_potential.generic_potential):
     '''
     This class comprises all necessary functions to compute the effective potential in the 3d effective theory up to two-loops
     '''
     def __init__(self):
         pass
 
-    def J_3(self, m):
-        return -m ** 3 / (12 * np.pi)
+    @staticmethod
+    def J_3(self, msq: float) -> complex:
+        """Initialisation
+
+        Parameters
+        ----------
+        msq : float 
+            Mass squared of given particle
+
+        Returns
+        -------
+        J_3 : float 
+            An object of the Model class.
+        """
+        # keep track of imaginary part
+        # TODO could keep dimensionality here alreayd 4d instead
+        # of fixing it later in the potential
+        return -(msq + 0j)**(3/2) / (12.*np.pi)
 
     def D_SSS(self, m1, m2, m3, Lambda):
         return 1 / (4 * np.pi) ** 2 * (1 / 2 + np.log(Lambda / (m1 + m2 + m3)))
@@ -48,7 +66,85 @@ class GenericPotential3D:
         D = 3
         return (D - 1) ** 3 / D * self.I_3(m1) * self.I_3(m2)
 
-    def I_3(self, m):
+    def I_3(self, m: complex):
+        # TODO should be made for squared masses
         alpha = 1
         D = 3
         return csqrt(m ** 2) / (4 * np.pi) ** (D / 2) * special.gamma(alpha - D / 2) / special.gamma(alpha)
+
+    @abstractmethod
+    def ParticleMassSq(self, fields, temperature):
+        """
+        Particle mass spectrum and
+        degrees of freedom
+
+        Returns
+        -------
+        massSq : array_like
+
+        degrees_of_freedom : float or array_like
+        """
+        pass
+
+    def V1(self, particles, temperature: float):
+        """
+        The one-loop corrections to the one-loop
+        EFT potential using MS-bar renormalization.
+
+        This is generally not called directly, but is instead used by
+        :func:`Vtot`.
+
+        Parameters
+        ----------
+        particles : array of floats
+            EFT particle spectrum (here: masses, number of dofs)
+
+        Returns
+        -------
+        V1 : 1loop vacuum contribution to the pressure
+
+        """
+        msq, dof = particles 
+        V = np.sum(dof*self.J_3(msq), axis=-1)
+
+        return V
+
+    @abstractmethod
+    def V2(self, particles, temperature: float):
+        """
+        Two loop effective potential
+        """
+        pass
+
+    def Vtot(self, fields, temperature: float include_radiation=True):
+        """
+        The total finite temperature effective potential.
+
+        Parameters
+        ----------
+        fields : array_like
+            Field value(s).
+            Either a single point (with length `Ndim`), or an array of points.
+        temperature : float or array_like
+            broadcastable (that is, ``X[0,...]*T`` is a valid operation).
+        include_radiation : bool, optional
+            If False, this will drop all field-independent radiation
+            terms from the effective potential. Useful for calculating
+            differences or derivatives.
+
+        Returns
+        -------
+        Vtot : total effective potential
+        """
+        T = np.asanyarray(temperature)
+        fields = np.asanyarray(fields)
+        fields = fields/np.sqrt(T + 1e-100)
+
+
+        particles = self.ParticleMassSq(fields,T)
+        V = self.V0(X, T)
+        V += self.V1(particles, T)
+        V += self.V2(particles, T)
+        # if include_radiation:
+        #     V += self.PressureLO(particles, T)
+        return T*np.real(V)

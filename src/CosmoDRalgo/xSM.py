@@ -16,6 +16,8 @@ class xSM:
         self.lambdaMix = lambdaMix
         self.lambdaS = lambdaS
 
+        self.thetaBar = 0
+
         '''
         Number of Higgs doublets, fermion generations, strong gauge coupling (neglect running)
         '''
@@ -39,6 +41,11 @@ class xSM:
         '''
         self.mu3Bar = mu3Bar
         self.mu4D = mu4D
+
+        '''
+        Fix dimension
+        '''
+        self.dim = 3
 
 
     def Get4Dparams(self, T):
@@ -348,24 +355,79 @@ class xSM:
 
         # return g3BarSq,g3PrimeBarSq,lambdaPhi3Bar,lambdaMix3Bar,lambdaS3Bar,mS3BarSq,mPhi3BarSq
         return g23dUSSq, g13dUSSq, lambdaPhi3dUS, lambdaMix3dUS, lambdaS3dUS, mSSq3dUS, mPhiSq3dUS
+    
+    def particleMassSq(self, fields, temperature: float):
+        """
+        Calculate the boson particle spectrum. Should be overridden by
+        subclasses.
 
-    def Veff_3D(self, Fields4D, T):
+        Parameters
+        ----------
+        fields : array_like
+            Field value(s).
+            Either a single point (with length `Ndim`), or an array of points.
+        temperature : float or array_like
+            The temperature at which to calculate the particle masses.
+
+        Returns
+        -------
+        massSq : array_like
+            A list of the particle masses at each input point `fields`.
+        degrees_of_freedom : float or array_like
+            The number of degrees of freedom for each particle.
+        """ 
+        T = np.asanyarray(temperature)
+        fields = np.asanyarray(fields)
+        phiBar = fields[...,0]
+        sBar = fields[...,1]
+
+        g3BarSq, g3PrimeBarSq, lambdaPhi3Bar, lambdaMix3Bar, lambdaS3Bar, mS3BarSq, mPhi3BarSq = self.Ultrasoft_params(T)
+
+        thetaBar=self.thetaBar
+        D=self.dim
+
+        degrees_of_freedom = np.array([1,1,3,2*(D-1),(D-1)]) #h,s,chi,W,Z
+
+        """
+        mass eigenvalues 
+        TODO diagonalise mass matrix
+        """
+
+        mh1BarSq = 1 / 2 * (
+            + (6 * lambdaPhi3Bar * phiBar ** 2 + 2 * mPhi3BarSq + lambdaMix3Bar * sBar ** 2) * np.cos(thetaBar) ** 2 
+            + (lambdaMix3Bar * phiBar ** 2 + 2 * mS3BarSq + 6 * lambdaS3Bar * sBar ** 2) * np.sin(thetaBar) ** 2 
+            - 2 * lambdaMix3Bar * phiBar * sBar * np.sin(2 * thetaBar))
+        mh2BarSq = 1 / 2 * (
+            + (6 * lambdaPhi3Bar * phiBar ** 2 + 2 * mPhi3BarSq + lambdaMix3Bar * sBar ** 2) * np.sin(thetaBar) ** 2 
+            + (lambdaMix3Bar * phiBar ** 2 + 2 * mS3BarSq + 6 * lambdaS3Bar * sBar ** 2) * np.cos(thetaBar) ** 2
+            + 2 * lambdaMix3Bar * phiBar * sBar * np.sin(2 * thetaBar))
+
+        mWBarSq = 1 / 4 * g3BarSq * phiBar ** 2
+        mZBarSq = 1 / 4 * (g3BarSq + g3PrimeBarSq) * phiBar ** 2
+        mGBarSq = mPhi3BarSq + lambdaPhi3Bar * phiBar ** 2 + 1 / 2 * lambdaMix3Bar * sBar ** 2
+
+        massSq = np.column_stack((mh1BarSq, mh2BarSq, mGBarSq, mWBarSq, mZBarSq))
+        return massSq, degrees_of_freedom
+
+
+    def Vtot(self, fields, temperature: float):
         '''
         3D Thermal effective potential up to two loops at the ultrasoft scale.
         This function returns T * Veff_3D, such that the output has mass dimension 4 and can directly be used for the
         computation of the phase transition parameters with CosmoTransitions.
         '''
+        T = np.asanyarray(temperature)
+        fields = np.asanyarray(fields)
+        fields = fields/np.sqrt(T + 1e-100)
 
-        Phi4D, S4D = Fields4D[..., 0], Fields4D[..., 1]
-
-        PhiBar = Phi4D / np.sqrt(T)
-        Sbar = S4D / np.sqrt(T)
+        PhiBar = fields[...,0]
+        Sbar = fields[...,1]
 
         g3BarSq, g3PrimeBarSq, lambdaPhi3Bar, lambdaMix3Bar, lambdaS3Bar, mS3BarSq, mPhi3BarSq = self.Ultrasoft_params(T)
 
         mu3Bar = self.mu3Bar * T
         muBar = mu3Bar
-        D = 3
+        D = self.dim
 
         mWBarSq = 1 / 4 * g3BarSq * PhiBar ** 2
         mZBarSq = 1 / 4 * (g3BarSq + g3PrimeBarSq) * PhiBar ** 2
@@ -391,12 +453,22 @@ class xSM:
         '''
         Tree-level part of the potential
         '''
-        V_0 = 1 / 2 * mPhi3BarSq * PhiBar ** 2 + 1 / 4 * lambdaPhi3Bar * PhiBar ** 4 + 1 / 2 * mS3BarSq * Sbar ** 2 + 1 / 4 * lambdaS3Bar * Sbar ** 4 + 1 / 4 * lambdaMix3Bar * PhiBar ** 2 * Sbar ** 2
+        V_0 = (
+            + 1 / 2 * mPhi3BarSq * PhiBar ** 2
+            + 1 / 4 * lambdaPhi3Bar * PhiBar ** 4
+            + 1 / 2 * mS3BarSq * Sbar ** 2
+            + 1 / 4 * lambdaS3Bar * Sbar ** 4 
+            + 1 / 4 * lambdaMix3Bar * PhiBar ** 2 * Sbar ** 2)
 
         '''
         One-loop part of the potential
         '''
-        V_1 = 2 * (D - 1) * GenericPotential3D().J_3(csqrt(mWBarSq)) + (D - 1) * GenericPotential3D().J_3(csqrt(mZBarSq)) + GenericPotential3D().J_3(csqrt(mh1BarSq)) + GenericPotential3D().J_3(csqrt(mh2BarSq)) + 3 * GenericPotential3D().J_3(csqrt(mGBarSq))
+        V_1 = (
+            + 2 * (D - 1) * GenericPotential3D().J_3(mWBarSq)
+            + (D - 1) * GenericPotential3D().J_3(mZBarSq) 
+            + GenericPotential3D().J_3(mh1BarSq) 
+            + GenericPotential3D().J_3(mh2BarSq) 
+            + 3 * GenericPotential3D().J_3(mGBarSq))
 
         if self.LoopOrderPotential == 0:
             return T*V_0
@@ -512,7 +584,10 @@ class xSM:
                             + 1 / 2 * C_ZZGpGm * GenericPotential3D().I_3(mGBar) * GenericPotential3D().I_3(mZBar)
                             + C_WpWmGpGm * GenericPotential3D().I_3(mGBar) * GenericPotential3D().I_3(mWBar))
 
-            VV = +1 / 2 * C_WpWmWpWm * GenericPotential3D().D_VV(mWBar, mWBar) - C_WpWmZZ * GenericPotential3D().D_VV(mWBar, mZBar)
+            VV = (
+                + 1 / 2 * C_WpWmWpWm * GenericPotential3D().D_VV(mWBar, mWBar) 
+                - C_WpWmZZ * GenericPotential3D().D_VV(mWBar, mZBar))
+
             V_2 = -(SSS + VSS + VVS + VVV + VGG + SS + VS + VV)
 
             return T*np.real(V_0 + V_1 + V_2)
