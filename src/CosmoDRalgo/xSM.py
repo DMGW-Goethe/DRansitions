@@ -1,7 +1,7 @@
-from GenericPotential3d import *
+from GenericPotential3D import *
 from mpmath import *
 
-class xSM:
+class xSM(GenericPotential3D):
     '''
     This class computes the 3D effective potential for the gauge singlet-extended SM at the ultrasoft scale g^2 T up to two-loops.
     The necessary functions to compute Veff are contained in the class GenericPotential_3D
