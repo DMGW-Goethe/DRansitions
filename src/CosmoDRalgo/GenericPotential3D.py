@@ -12,7 +12,7 @@ class GenericPotential3D(ABC,generic_potential.generic_potential):
     def __init__(self):
         pass
 
-    @staticmethod
+    # @staticmethod
     def J_3(self, msq: float) -> complex:
         """Initialisation
 
@@ -73,7 +73,7 @@ class GenericPotential3D(ABC,generic_potential.generic_potential):
         return csqrt(m ** 2) / (4 * np.pi) ** (D / 2) * special.gamma(alpha - D / 2) / special.gamma(alpha)
 
     @abstractmethod
-    def ParticleMassSq(self, fields, temperature):
+    def particleMassSq(self, fields, temperature: float):
         """
         Particle mass spectrum and
         degrees of freedom
@@ -109,14 +109,14 @@ class GenericPotential3D(ABC,generic_potential.generic_potential):
 
         return V
 
-    @abstractmethod
-    def V2(self, particles, temperature: float):
-        """
-        Two loop effective potential
-        """
-        pass
+    # @abstractmethod
+    # def V2(self, particles, temperature: float):
+    #     """
+    #     Two loop effective potential
+    #     """
+    #     pass
 
-    def Vtot(self, fields, temperature: float include_radiation=True):
+    def Vtot(self, fields, temperature: float, include_radiation=True):
         """
         The total finite temperature effective potential.
 
