@@ -53,6 +53,15 @@ class xSM(GenericPotential3D):
         '''
         self.dim = 3
 
+        '''
+        Fix loop counting
+        '''
+        self.N0LO, self.N1LO = 0, 0
+        if self.LoopOrderParameters >= 1:
+            self.N0LO = 1
+        if self.LoopOrderParameters >= 2:
+            self.N1LO = 1
+
 
     def Get4Dparams(self, T):
         '''
@@ -142,10 +151,7 @@ class xSM(GenericPotential3D):
                                 5 * g1 ** 4 * Lf * Nf * T) / (72. * Pi ** 2) - (17 * g1 ** 2 * T * yt1 ** 2) / (
                                 48. * Pi ** 2)
 
-        if self.LoopOrderParameters == 1:
-            N0LO, N1LO = 1, 0
-        elif self.LoopOrderParameters == 2:
-            N0LO, N1LO = 1, 1
+        N0LO, N1LO = self.N0LO, self.N1LO
 
         musqSU2 = (g2 ** 2 * mPhiSq * N1LO) / (8. * Pi ** 2) + (5 * g2 ** 2 * N0LO * T ** 2) / 6. + (
                     g2 ** 2 * N0LO * Nf * T ** 2) / 3. + (g1 ** 2 * g2 ** 2 * N1LO * T ** 2) / (128. * Pi ** 2) + (
@@ -284,7 +290,7 @@ class xSM(GenericPotential3D):
 
         return lambdaMix3d, lambdaS3d, lambdaPhi3d, mSSq3d, mPhiSq3d, musqU1, musqSU2, musqSU3, g13Sq, g23Sq, g33Sq, lambdaVLL1, lambdaVLL2, lambdaVLL3, lambdaVLL4, lambdaVLL5, lambdaVLL6, lambdaVLL7, lambdaVLL8, lambdaVLL9, lambdaVL1, lambdaVL2, lambdaVL3, lambdaVL4, lambdaVL5, lambdaVL6
 
-    def Ultrasoft_params(self, T):
+    def GetUltrasoftParams(self, T):
         '''
         From a set of 3D parameters at the soft scale ~gT, this function returns effective parameters at the
         ultrasoft scale ~g^2 T. The desired precision can be chosen by adjusting LoopOrderParameters when initializing the class.
@@ -295,10 +301,7 @@ class xSM(GenericPotential3D):
 
         mu3Bar = self.mu3Bar * T
 
-        if self.LoopOrderParameters == 1:
-            N0LO, N1LO = 1, 0
-        elif self.LoopOrderParameters == 2:
-            N0LO, N1LO = 1, 1
+        N0LO, N1LO = self.N0LO, self.N1LO
 
         lambdaMix3dUS = lambdaMix3d - (3 * lambdaVL1 * lambdaVL4) / (16. * csqrt(musqSU2) * Pi) - (
                     lambdaVL3 * lambdaVL6) / (16. * csqrt(musqU1) * Pi)
@@ -362,8 +365,27 @@ class xSM(GenericPotential3D):
                                32. * Pi ** 2)
 
         # return g3BarSq,g3PrimeBarSq,lambdaPhi3Bar,lambdaMix3Bar,lambdaS3Bar,mS3BarSq,mPhi3BarSq
-        return g23dUSSq, g13dUSSq, lambdaPhi3dUS, lambdaMix3dUS, lambdaS3dUS, mSSq3dUS, mPhiSq3dUS
-    
+        self.UltrasoftParams = g23dUSSq, g13dUSSq, lambdaPhi3dUS, lambdaMix3dUS, lambdaS3dUS, mSSq3dUS, mPhiSq3dUS
+     
+    def V0(self, fields, temperature: float):
+        '''
+        Tree-level part of the potential
+        '''
+        T = np.asanyarray(temperature)
+        phiBar = fields[...,0]
+        sBar = fields[...,1]
+
+
+        _, _, lambdaPhi3Bar, lambdaMix3Bar, lambdaS3Bar, mS3BarSq, mPhi3BarSq = self.UltrasoftParams
+
+        V = (
+            + 1 / 2 * mPhi3BarSq * phiBar ** 2
+            + 1 / 4 * lambdaPhi3Bar * phiBar ** 4
+            + 1 / 2 * mS3BarSq * sBar ** 2
+            + 1 / 4 * lambdaS3Bar * sBar ** 4 
+            + 1 / 4 * lambdaMix3Bar * phiBar ** 2 * sBar ** 2)
+        return V
+
     def particleMassSq(self, fields, temperature: float):
         """
         Calculate the boson particle spectrum. Should be overridden by
@@ -389,7 +411,7 @@ class xSM(GenericPotential3D):
         phiBar = fields[...,0]
         sBar = fields[...,1]
 
-        g3BarSq, g3PrimeBarSq, lambdaPhi3Bar, lambdaMix3Bar, lambdaS3Bar, mS3BarSq, mPhi3BarSq = self.Ultrasoft_params(T)
+        g3BarSq, g3PrimeBarSq, lambdaPhi3Bar, lambdaMix3Bar, lambdaS3Bar, mS3BarSq, mPhi3BarSq = self.UltrasoftParams 
 
         thetaBar=self.thetaBar
         D=self.dim
@@ -418,25 +440,6 @@ class xSM(GenericPotential3D):
         return massSq, degrees_of_freedom
 
 
-    def V0(self, fields, temperature: float):
-        '''
-        Tree-level part of the potential
-        '''
-        # TODO make own function for this
-        T = np.asanyarray(temperature)
-        PhiBar = fields[...,0]
-        Sbar = fields[...,1]
-
-
-        g3BarSq, g3PrimeBarSq, lambdaPhi3Bar, lambdaMix3Bar, lambdaS3Bar, mS3BarSq, mPhi3BarSq = self.Ultrasoft_params(T)
-
-        V = (
-            + 1 / 2 * mPhi3BarSq * PhiBar ** 2
-            + 1 / 4 * lambdaPhi3Bar * PhiBar ** 4
-            + 1 / 2 * mS3BarSq * Sbar ** 2
-            + 1 / 4 * lambdaS3Bar * Sbar ** 4 
-            + 1 / 4 * lambdaMix3Bar * PhiBar ** 2 * Sbar ** 2)
-        return V
 
     def V2(self, fields, particles, temperature: float):
         '''
@@ -445,10 +448,10 @@ class xSM(GenericPotential3D):
         computation of the phase transition parameters with CosmoTransitions.
         '''
         T = np.asanyarray(temperature)
-        PhiBar = fields[...,0]
-        Sbar = fields[...,1]
+        phiBar = fields[...,0]
+        sBar = fields[...,1]
 
-        g3BarSq, g3PrimeBarSq, lambdaPhi3Bar, lambdaMix3Bar, lambdaS3Bar, mS3BarSq, mPhi3BarSq = self.Ultrasoft_params(T)
+        g3BarSq, g3PrimeBarSq, lambdaPhi3Bar, lambdaMix3Bar, lambdaS3Bar,_,_ = self.UltrasoftParams
 
         mu3Bar = self.mu3Bar * T
         muBar = mu3Bar
@@ -486,29 +489,29 @@ class xSM(GenericPotential3D):
         C_ZZGpGm = -1 / 2 * (g3BarSq - g3PrimeBarSq) ** 2 / (g3BarSq + g3PrimeBarSq)
         C_WpWmWpWm = -g3BarSq
         C_WpWmZZ = g3BarSq ** 2 / (g3BarSq + g3PrimeBarSq)
-        C_h1h1h1 = -6 * PhiBar * lambdaPhi3Bar * ct ** 3 + 3 * lambdaMix3Bar * Sbar * ct ** 2 * st + 3 * lambdaMix3Bar * PhiBar * ct * st ** 2 + 6 * lambdaS3Bar * Sbar * st ** 3
-        C_h2h2h2 = -6 * PhiBar * lambdaPhi3Bar * st ** 3 - 3 * lambdaMix3Bar * Sbar * ct * st ** 2 - 3 * lambdaMix3Bar * PhiBar * ct ** 2 * st - 6 * lambdaS3Bar * Sbar * ct ** 3
-        C_h1GG = C_h1GpGm = -2 * PhiBar * lambdaPhi3Bar * ct + lambdaMix3Bar * Sbar * st
-        C_h1h1h2 = -lambdaMix3Bar * Sbar * ct ** 3 + 2 * PhiBar * (
+        C_h1h1h1 = -6 * phiBar * lambdaPhi3Bar * ct ** 3 + 3 * lambdaMix3Bar * sBar * ct ** 2 * st + 3 * lambdaMix3Bar * phiBar * ct * st ** 2 + 6 * lambdaS3Bar * sBar * st ** 3
+        C_h2h2h2 = -6 * phiBar * lambdaPhi3Bar * st ** 3 - 3 * lambdaMix3Bar * sBar * ct * st ** 2 - 3 * lambdaMix3Bar * phiBar * ct ** 2 * st - 6 * lambdaS3Bar * sBar * ct ** 3
+        C_h1GG = C_h1GpGm = -2 * phiBar * lambdaPhi3Bar * ct + lambdaMix3Bar * sBar * st
+        C_h1h1h2 = -lambdaMix3Bar * sBar * ct ** 3 + 2 * phiBar * (
                     -3 * lambdaPhi3Bar + lambdaMix3Bar) * ct ** 2 * st + (
-                                2 * lambdaMix3Bar * Sbar - 6 * lambdaS3Bar * Sbar) * ct * st ** 2 - PhiBar * lambdaMix3Bar * st ** 3
-        C_h2h2h1 = -lambdaMix3Bar * Sbar * st ** 3 + 2 * PhiBar * (
+                                2 * lambdaMix3Bar * sBar - 6 * lambdaS3Bar * sBar) * ct * st ** 2 - phiBar * lambdaMix3Bar * st ** 3
+        C_h2h2h1 = -lambdaMix3Bar * sBar * st ** 3 + 2 * phiBar * (
                     -3 * lambdaPhi3Bar + lambdaMix3Bar) * st ** 2 * ct + (
-                                2 * lambdaMix3Bar * Sbar - 6 * lambdaS3Bar * Sbar) * st * ct ** 2 - PhiBar * lambdaMix3Bar * ct ** 3
-        C_GGh2 = C_h2GpGm = -2 * PhiBar * lambdaPhi3Bar * st - lambdaMix3Bar * Sbar * ct
-        C_ZZh1 = -1 / 2 * (g3BarSq + g3PrimeBarSq) * PhiBar * ct
-        C_ZZh2 = -1 / 2 * (g3BarSq + g3PrimeBarSq) * PhiBar * st
-        C_WpWmh1 = -1 / 2 * g3BarSq * PhiBar * ct
-        C_WpWmh2 = -1 / 2 * g3BarSq * PhiBar * st
-        C_WmZGp = C_WpZGm = PhiBar / 2 * csqrt(g3BarSq) * g3PrimeBarSq / csqrt(g3BarSq + g3PrimeBarSq)
-        C_WmAGp = C_WpAGm = -PhiBar / 2 * csqrt(g3PrimeBarSq) * g3BarSq / csqrt(g3BarSq + g3PrimeBarSq)
+                                2 * lambdaMix3Bar * sBar - 6 * lambdaS3Bar * sBar) * st * ct ** 2 - phiBar * lambdaMix3Bar * ct ** 3
+        C_GGh2 = C_h2GpGm = -2 * phiBar * lambdaPhi3Bar * st - lambdaMix3Bar * sBar * ct
+        C_ZZh1 = -1 / 2 * (g3BarSq + g3PrimeBarSq) * phiBar * ct
+        C_ZZh2 = -1 / 2 * (g3BarSq + g3PrimeBarSq) * phiBar * st
+        C_WpWmh1 = -1 / 2 * g3BarSq * phiBar * ct
+        C_WpWmh2 = -1 / 2 * g3BarSq * phiBar * st
+        C_WmZGp = C_WpZGm = +phiBar / 2 * csqrt(g3BarSq) * g3PrimeBarSq / csqrt(g3BarSq + g3PrimeBarSq)
+        C_WmAGp = C_WpAGm = -phiBar / 2 * csqrt(g3PrimeBarSq) * g3BarSq / csqrt(g3BarSq + g3PrimeBarSq)
         C_h1GZ = -1j / 2 * csqrt(g3BarSq + g3PrimeBarSq) * ct
         C_h2GZ = -1j / 2 * csqrt(g3BarSq + g3PrimeBarSq) * st
         C_GpGmZ = 1 / 2 * (g3PrimeBarSq - g3BarSq) / csqrt(g3PrimeBarSq + g3BarSq)
         C_GpGmA = -csqrt(g3BarSq) * csqrt(g3PrimeBarSq) / csqrt(g3PrimeBarSq + g3BarSq)
         C_h1GpWm = 1 / 2 * csqrt(g3BarSq) * ct
-        C_h1GmWp = -C_h1GpWm
         C_h2GpWm = 1 / 2 * csqrt(g3BarSq) * st
+        C_h1GmWp = -C_h1GpWm
         C_h2GmWp = -C_h2GpWm
         C_GGpWm = C_GGmWp = -1j / 2 * csqrt(g3BarSq)
         C_WpWmZ = g3BarSq / csqrt(g3BarSq + g3PrimeBarSq)
@@ -521,70 +524,70 @@ class xSM(GenericPotential3D):
         C_Zcbarmcp = -C_Zcbarpcm
 
         SSS = (
-            + 1 / 12 * C_h1h1h1 ** 2 * super().D_SSS(mh1Bar, mh1Bar, mh1Bar, muBar)
-            + 1 / 12 * C_h2h2h2 ** 2 * super().D_SSS(mh2Bar, mh2Bar, mh2Bar, muBar)
-            + 1 / 4 * C_h1GG ** 2 * super().D_SSS(mh1Bar, mGBar, mGBar, muBar)
-            + 1 / 4 * C_h1h1h2 ** 2 * super().D_SSS(mh1Bar, mh1Bar, mh2Bar, muBar)
-            + 1 / 4 * C_h2h2h1 ** 2 * super().D_SSS(mh2Bar, mh2Bar, mh1Bar, muBar)
-            + 1 / 4 * C_GGh2 ** 2 * super().D_SSS(mGBar, mGBar, mh2Bar, muBar)
-            + 1 / 2 * C_h1GpGm ** 2 * super().D_SSS(mh1Bar, mGBar, mGBar, muBar)
-            + 1 / 2 * C_h2GpGm ** 2 * super().D_SSS(mh2Bar, mGBar, mGBar, muBar))
+            + 1 / 12 * C_h1h1h1 ** 2 * self.D_SSS(mh1Bar, mh1Bar, mh1Bar, muBar)
+            + 1 / 12 * C_h2h2h2 ** 2 * self.D_SSS(mh2Bar, mh2Bar, mh2Bar, muBar)
+            + 1 / 4 * C_h1GG ** 2 * self.D_SSS(mh1Bar, mGBar, mGBar, muBar)
+            + 1 / 4 * C_h1h1h2 ** 2 * self.D_SSS(mh1Bar, mh1Bar, mh2Bar, muBar)
+            + 1 / 4 * C_h2h2h1 ** 2 * self.D_SSS(mh2Bar, mh2Bar, mh1Bar, muBar)
+            + 1 / 4 * C_GGh2 ** 2 * self.D_SSS(mGBar, mGBar, mh2Bar, muBar)
+            + 1 / 2 * C_h1GpGm ** 2 * self.D_SSS(mh1Bar, mGBar, mGBar, muBar)
+            + 1 / 2 * C_h2GpGm ** 2 * self.D_SSS(mh2Bar, mGBar, mGBar, muBar))
 
         VSS = (
-            - 1 / 2 * C_h1GZ ** 2 * super().D_VSS(mh1Bar, mGBar, mZBar, muBar)
-            - 1 / 2 * C_h2GZ ** 2 * super().D_VSS(mh2Bar, mGBar, mZBar, muBar)
-            + 1 / 2 * C_GpGmZ ** 2 * super().D_VSS(mGBar, mGBar, mZBar, muBar)
-            + 1 / 2 * C_GpGmA ** 2 * super().D_VSS_1(mGBar, mGBar, muBar)
-            - C_h1GpWm * C_h1GmWp * super().D_VSS(mh1Bar, mGBar, mWBar, muBar)
-            - C_h2GpWm * C_h2GmWp * super().D_VSS(mh2Bar, mGBar, mWBar, muBar)
-            - C_GGpWm * C_GGmWp * super().D_VSS(mGBar, mGBar, mWBar, muBar))
+            - 1 / 2 * C_h1GZ ** 2 * self.D_VSS(mh1Bar, mGBar, mZBar, muBar)
+            - 1 / 2 * C_h2GZ ** 2 * self.D_VSS(mh2Bar, mGBar, mZBar, muBar)
+            + 1 / 2 * C_GpGmZ ** 2 * self.D_VSS(mGBar, mGBar, mZBar, muBar)
+            + 1 / 2 * C_GpGmA ** 2 * self.D_VSS_1(mGBar, mGBar, muBar)
+            - C_h1GpWm * C_h1GmWp * self.D_VSS(mh1Bar, mGBar, mWBar, muBar)
+            - C_h2GpWm * C_h2GmWp * self.D_VSS(mh2Bar, mGBar, mWBar, muBar)
+            - C_GGpWm * C_GGmWp * self.D_VSS(mGBar, mGBar, mWBar, muBar))
 
         VVS = (
-            + 1 / 4 * C_ZZh1 ** 2 * super().D_VVS(mh1Bar, mZBar, mZBar, muBar)
-            + 1 / 4 * C_ZZh2 ** 2 * super().D_VVS(mh2Bar, mZBar, mZBar, muBar)
-            + 1 / 2 * C_WpWmh1 ** 2 * super().D_VVS(mh1Bar, mWBar, mWBar, muBar)
-            + 1 / 2 * C_WpWmh2 ** 2 * super().D_VVS(mh2Bar, mWBar, mWBar, muBar)
-            + C_WmZGp * C_WpZGm * super().D_VVS(mGBar, mWBar, mZBar, muBar)
-            + C_WmAGp * C_WpAGm * super().D_VVS_1(mGBar, mWBar, muBar))
+            + 1 / 4 * C_ZZh1 ** 2 * self.D_VVS(mh1Bar, mZBar, mZBar, muBar)
+            + 1 / 4 * C_ZZh2 ** 2 * self.D_VVS(mh2Bar, mZBar, mZBar, muBar)
+            + 1 / 2 * C_WpWmh1 ** 2 * self.D_VVS(mh1Bar, mWBar, mWBar, muBar)
+            + 1 / 2 * C_WpWmh2 ** 2 * self.D_VVS(mh2Bar, mWBar, mWBar, muBar)
+            + C_WmZGp * C_WpZGm * self.D_VVS(mGBar, mWBar, mZBar, muBar)
+            + C_WmAGp * C_WpAGm * self.D_VVS_1(mGBar, mWBar, muBar))
 
         VVV = (
-            + 1 / 2 * C_WpWmZ ** 2 * super().D_VVV(mWBar, mZBar, muBar)
-            + 1 / 2 * C_WpWmA ** 2 * super().D_VVV_1(mWBar, muBar))
+            + 1 / 2 * C_WpWmZ ** 2 * self.D_VVV(mWBar, mZBar, muBar)
+            + 1 / 2 * C_WpWmA ** 2 * self.D_VVV_1(mWBar, muBar))
 
         VGG = (
-            - C_WpcbarmcZ * C_WmcbarZcp * super().D_VGG(mWBar, muBar)
-            - C_WpcbarZcm * C_WmcbarpcZ * super().D_VGG(mWBar, muBar)
-            - C_WpcbarmcA * C_WmcbarAcp * super().D_VGG(mWBar, muBar)
-            - C_WpcbarAcm * C_WmcbarpcA * super().D_VGG(mWBar, muBar)
-            - 1 / 2 * C_Zcbarpcm ** 2 * super().D_VGG(mZBar, muBar)
-            - 1 / 2 * C_Zcbarmcp ** 2 * super().D_VGG(mZBar, muBar))
+            - C_WpcbarmcZ * C_WmcbarZcp * self.D_VGG(mWBar, muBar)
+            - C_WpcbarZcm * C_WmcbarpcZ * self.D_VGG(mWBar, muBar)
+            - C_WpcbarmcA * C_WmcbarAcp * self.D_VGG(mWBar, muBar)
+            - C_WpcbarAcm * C_WmcbarpcA * self.D_VGG(mWBar, muBar)
+            - 1 / 2 * C_Zcbarpcm ** 2 * self.D_VGG(mZBar, muBar)
+            - 1 / 2 * C_Zcbarmcp ** 2 * self.D_VGG(mZBar, muBar))
 
         SS = (
-            + 1 / 8 * C_h1h1h1h1 * super().I_3(mh1Bar) ** 2
-            + 1 / 8 * C_h2h2h2h2 * super().I_3(mh2Bar) ** 2
-            + 1 / 8 * C_GGGG * super().I_3(mGBar) ** 2
-            + 1 / 4 * C_h1h1h2h2 * super().I_3(mh1Bar) * super().I_3(mh2Bar)
-            + 1 / 4 * C_h1h1GG * super().I_3(mh1Bar) * super().I_3(mGBar)
-            + 1 / 4 * C_h2h2GG * super().I_3(mGBar) * super().I_3(mh2Bar)
-            + 1 / 2 * C_GpGmGpGm * super().I_3(mGBar) ** 2
-            + 1 / 2 * C_h1h1GpGm * super().I_3(mh1Bar) * super().I_3(mGBar)
-            + 1 / 2 * C_h2h2GpGm * super().I_3(mh2Bar) * super().I_3(mGBar)
-            + 1 / 2 * C_GGGpGm * super().I_3(mGBar) ** 2)
+            + 1 / 8 * C_h1h1h1h1 * self.I_3(mh1Bar) ** 2
+            + 1 / 8 * C_h2h2h2h2 * self.I_3(mh2Bar) ** 2
+            + 1 / 8 * C_GGGG * self.I_3(mGBar) ** 2
+            + 1 / 4 * C_h1h1h2h2 * self.I_3(mh1Bar) * self.I_3(mh2Bar)
+            + 1 / 4 * C_h1h1GG * self.I_3(mh1Bar) * self.I_3(mGBar)
+            + 1 / 4 * C_h2h2GG * self.I_3(mGBar) * self.I_3(mh2Bar)
+            + 1 / 2 * C_GpGmGpGm * self.I_3(mGBar) ** 2
+            + 1 / 2 * C_h1h1GpGm * self.I_3(mh1Bar) * self.I_3(mGBar)
+            + 1 / 2 * C_h2h2GpGm * self.I_3(mh2Bar) * self.I_3(mGBar)
+            + 1 / 2 * C_GGGpGm * self.I_3(mGBar) ** 2)
 
         VS = (
-            + 1 / 4 * C_ZZh1h1 * super().I_3(mh1Bar) * super().I_3(mZBar)
-            + 1 / 4 * C_ZZh2h2 * super().I_3(mh2Bar) * super().I_3(mZBar)
-            + 1 / 4 * C_ZZGG * super().I_3(mGBar) * super().I_3(mZBar)
-            + 1 / 2 * C_WpWmh1h1 * super().I_3(mh1Bar) * super().I_3(mWBar)
-            + 1 / 2 * C_WpWmh2h2 * super().I_3(mh2Bar) * super().I_3(mWBar)
-            + 1 / 2 * C_WpWmGG * super().I_3(mGBar) * super().I_3(mWBar)
-            + 1 / 2 * C_ZZGpGm * super().I_3(mGBar) * super().I_3(mZBar)
-            + C_WpWmGpGm * super().I_3(mGBar) * super().I_3(mWBar))
+            + 1 / 4 * C_ZZh1h1 * self.I_3(mh1Bar) * self.I_3(mZBar)
+            + 1 / 4 * C_ZZh2h2 * self.I_3(mh2Bar) * self.I_3(mZBar)
+            + 1 / 4 * C_ZZGG * self.I_3(mGBar) * self.I_3(mZBar)
+            + 1 / 2 * C_WpWmh1h1 * self.I_3(mh1Bar) * self.I_3(mWBar)
+            + 1 / 2 * C_WpWmh2h2 * self.I_3(mh2Bar) * self.I_3(mWBar)
+            + 1 / 2 * C_WpWmGG * self.I_3(mGBar) * self.I_3(mWBar)
+            + 1 / 2 * C_ZZGpGm * self.I_3(mGBar) * self.I_3(mZBar)
+            + C_WpWmGpGm * self.I_3(mGBar) * self.I_3(mWBar))
         VS *= (D-1)
 
         VV = (
-            + 1 / 2 * C_WpWmWpWm * super().D_VV(mWBar, mWBar) 
-            - C_WpWmZZ * super().D_VV(mWBar, mZBar))
+            + 1 / 2 * C_WpWmWpWm * self.D_VV(mWBar, mWBar) 
+            - C_WpWmZZ * self.D_VV(mWBar, mZBar))
 
         V = -(SSS + VSS + VVS + VVV + VGG + SS + VS + VV)
 
