@@ -9,13 +9,16 @@ class GenericPotential3D(ABC,generic_potential.generic_potential):
     '''
     This class comprises all necessary functions to compute the effective potential in the 3d effective theory up to two-loops
     '''
-    def __init__(self):
-        pass
+    def __init__(self, order: int, RGscale: float):
+        self.order = order
+        self.RGscale = RGscale
+        """Initialisation
+        """
+
 
     # @staticmethod
     def J_3(self, msq: float) -> complex:
-        """Initialisation
-
+        """
         Parameters
         ----------
         msq : float 
@@ -141,8 +144,8 @@ class GenericPotential3D(ABC,generic_potential.generic_potential):
         fields = fields/np.sqrt(T + 1e-100)
 
 
-        particles = self.ParticleMassSq(fields,T)
-        V = self.V0(X, T)
+        particles = self.particleMassSq(fields,T)
+        V = self.V0(fields, T)
         V += self.V1(particles, T)
         V += self.V2(particles, T)
         # if include_radiation:

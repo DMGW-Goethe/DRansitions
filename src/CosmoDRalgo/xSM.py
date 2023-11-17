@@ -1,5 +1,7 @@
-from GenericPotential3D import *
+import numpy as np
+from GenericPotential3D import * 
 from mpmath import *
+
 
 class xSM(GenericPotential3D):
     '''
@@ -7,7 +9,11 @@ class xSM(GenericPotential3D):
     The necessary functions to compute Veff are contained in the class GenericPotential_3D
     The function Veff_3D can directly be used as an input for CosmoTransitions.
     '''
-    def __init__(self,mh2,lambdaMix,lambdaS,inputParams_MZ_4D,mu3Bar,mu4D,LoopOrderParameters,LoopOrderPotential):
+    def __init__(self,mh2,lambdaMix,lambdaS,inputParams_MZ_4D,
+            mu3Bar: float, mu4D: float,
+            LoopOrderParameters,
+            LoopOrderPotential: int):
+        super().__init__(LoopOrderPotential, mu4D)
         self.c = -0.348723
         '''
         BSM input at scale mu = M_Z
@@ -465,14 +471,14 @@ class xSM(GenericPotential3D):
 
         '''
         One-loop part of the potential
-        # TODO make own function for this inherting from GenericPotential3D
+        # TODO make own function for this inherting from super
         '''
         V_1 = (
-            + 2 * (D - 1) * GenericPotential3D().J_3(mWBarSq)
-            + (D - 1) * GenericPotential3D().J_3(mZBarSq) 
-            + GenericPotential3D().J_3(mh1BarSq) 
-            + GenericPotential3D().J_3(mh2BarSq) 
-            + 3 * GenericPotential3D().J_3(mGBarSq))
+            + 2 * (D - 1) * super().J_3(mWBarSq)
+            + (D - 1) * super().J_3(mZBarSq) 
+            + super().J_3(mh1BarSq) 
+            + super().J_3(mh2BarSq) 
+            + 3 * super().J_3(mGBarSq))
 
         if self.LoopOrderPotential == 0:
             return T*V_0
@@ -534,63 +540,63 @@ class xSM(GenericPotential3D):
             C_Zcbarpcm = -g3BarSq / csqrt(g3BarSq + g3PrimeBarSq)
             C_Zcbarmcp = -C_Zcbarpcm
 
-            SSS = + 1 / 12 * C_h1h1h1 ** 2 * GenericPotential3D().D_SSS(mh1Bar, mh1Bar, mh1Bar, muBar) \
-                  + 1 / 12 * C_h2h2h2 ** 2 * GenericPotential3D().D_SSS(mh2Bar, mh2Bar, mh2Bar, muBar) \
-                  + 1 / 4 * C_h1GG ** 2 * GenericPotential3D().D_SSS(mh1Bar, mGBar, mGBar, muBar) \
-                  + 1 / 4 * C_h1h1h2 ** 2 * GenericPotential3D().D_SSS(mh1Bar, mh1Bar, mh2Bar, muBar) \
-                  + 1 / 4 * C_h2h2h1 ** 2 * GenericPotential3D().D_SSS(mh2Bar, mh2Bar, mh1Bar, muBar) \
-                  + 1 / 4 * C_GGh2 ** 2 * GenericPotential3D().D_SSS(mGBar, mGBar, mh2Bar, muBar) \
-                  + 1 / 2 * C_h1GpGm ** 2 * GenericPotential3D().D_SSS(mh1Bar, mGBar, mGBar, muBar) \
-                  + 1 / 2 * C_h2GpGm ** 2 * GenericPotential3D().D_SSS(mh2Bar, mGBar, mGBar, muBar)
+            SSS = + 1 / 12 * C_h1h1h1 ** 2 * super().D_SSS(mh1Bar, mh1Bar, mh1Bar, muBar) \
+                  + 1 / 12 * C_h2h2h2 ** 2 * super().D_SSS(mh2Bar, mh2Bar, mh2Bar, muBar) \
+                  + 1 / 4 * C_h1GG ** 2 * super().D_SSS(mh1Bar, mGBar, mGBar, muBar) \
+                  + 1 / 4 * C_h1h1h2 ** 2 * super().D_SSS(mh1Bar, mh1Bar, mh2Bar, muBar) \
+                  + 1 / 4 * C_h2h2h1 ** 2 * super().D_SSS(mh2Bar, mh2Bar, mh1Bar, muBar) \
+                  + 1 / 4 * C_GGh2 ** 2 * super().D_SSS(mGBar, mGBar, mh2Bar, muBar) \
+                  + 1 / 2 * C_h1GpGm ** 2 * super().D_SSS(mh1Bar, mGBar, mGBar, muBar) \
+                  + 1 / 2 * C_h2GpGm ** 2 * super().D_SSS(mh2Bar, mGBar, mGBar, muBar)
 
-            VSS = - 1 / 2 * C_h1GZ ** 2 * GenericPotential3D().D_VSS(mh1Bar, mGBar, mZBar, muBar) \
-                  - 1 / 2 * C_h2GZ ** 2 * GenericPotential3D().D_VSS(mh2Bar, mGBar, mZBar, muBar) \
-                  + 1 / 2 * C_GpGmZ ** 2 * GenericPotential3D().D_VSS(mGBar, mGBar, mZBar, muBar) \
-                  + 1 / 2 * C_GpGmA ** 2 * GenericPotential3D().D_VSS_1(mGBar, mGBar, muBar) \
-                  - C_h1GpWm * C_h1GmWp * GenericPotential3D().D_VSS(mh1Bar, mGBar, mWBar, muBar) \
-                  - C_h2GpWm * C_h2GmWp * GenericPotential3D().D_VSS(mh2Bar, mGBar, mWBar, muBar) \
-                  - C_GGpWm * C_GGmWp * GenericPotential3D().D_VSS(mGBar, mGBar, mWBar, muBar)
+            VSS = - 1 / 2 * C_h1GZ ** 2 * super().D_VSS(mh1Bar, mGBar, mZBar, muBar) \
+                  - 1 / 2 * C_h2GZ ** 2 * super().D_VSS(mh2Bar, mGBar, mZBar, muBar) \
+                  + 1 / 2 * C_GpGmZ ** 2 * super().D_VSS(mGBar, mGBar, mZBar, muBar) \
+                  + 1 / 2 * C_GpGmA ** 2 * super().D_VSS_1(mGBar, mGBar, muBar) \
+                  - C_h1GpWm * C_h1GmWp * super().D_VSS(mh1Bar, mGBar, mWBar, muBar) \
+                  - C_h2GpWm * C_h2GmWp * super().D_VSS(mh2Bar, mGBar, mWBar, muBar) \
+                  - C_GGpWm * C_GGmWp * super().D_VSS(mGBar, mGBar, mWBar, muBar)
 
-            VVS = + 1 / 4 * C_ZZh1 ** 2 * GenericPotential3D().D_VVS(mh1Bar, mZBar, mZBar, muBar) \
-                  + 1 / 4 * C_ZZh2 ** 2 * GenericPotential3D().D_VVS(mh2Bar, mZBar, mZBar, muBar) \
-                  + 1 / 2 * C_WpWmh1 ** 2 * GenericPotential3D().D_VVS(mh1Bar, mWBar, mWBar, muBar) \
-                  + 1 / 2 * C_WpWmh2 ** 2 * GenericPotential3D().D_VVS(mh2Bar, mWBar, mWBar, muBar) \
-                  + C_WmZGp * C_WpZGm * GenericPotential3D().D_VVS(mGBar, mWBar, mZBar, muBar) \
-                  + C_WmAGp * C_WpAGm * GenericPotential3D().D_VVS_1(mGBar, mWBar, muBar)
+            VVS = + 1 / 4 * C_ZZh1 ** 2 * super().D_VVS(mh1Bar, mZBar, mZBar, muBar) \
+                  + 1 / 4 * C_ZZh2 ** 2 * super().D_VVS(mh2Bar, mZBar, mZBar, muBar) \
+                  + 1 / 2 * C_WpWmh1 ** 2 * super().D_VVS(mh1Bar, mWBar, mWBar, muBar) \
+                  + 1 / 2 * C_WpWmh2 ** 2 * super().D_VVS(mh2Bar, mWBar, mWBar, muBar) \
+                  + C_WmZGp * C_WpZGm * super().D_VVS(mGBar, mWBar, mZBar, muBar) \
+                  + C_WmAGp * C_WpAGm * super().D_VVS_1(mGBar, mWBar, muBar)
 
-            VVV = 1 / 2 * C_WpWmZ ** 2 * GenericPotential3D().D_VVV(mWBar, mZBar, muBar) \
-                  + 1 / 2 * C_WpWmA ** 2 * GenericPotential3D().D_VVV_1(mWBar, muBar)
+            VVV = 1 / 2 * C_WpWmZ ** 2 * super().D_VVV(mWBar, mZBar, muBar) \
+                  + 1 / 2 * C_WpWmA ** 2 * super().D_VVV_1(mWBar, muBar)
 
-            VGG = -C_WpcbarmcZ * C_WmcbarZcp * GenericPotential3D().D_VGG(mWBar, muBar) \
-                  - C_WpcbarZcm * C_WmcbarpcZ * GenericPotential3D().D_VGG(mWBar, muBar) \
-                  - C_WpcbarmcA * C_WmcbarAcp * GenericPotential3D().D_VGG(mWBar, muBar) \
-                  - C_WpcbarAcm * C_WmcbarpcA * GenericPotential3D().D_VGG(mWBar, muBar) \
-                  - 1 / 2 * C_Zcbarpcm ** 2 * GenericPotential3D().D_VGG(mZBar, muBar) \
-                  - 1 / 2 * C_Zcbarmcp ** 2 * GenericPotential3D().D_VGG(mZBar, muBar)
+            VGG = -C_WpcbarmcZ * C_WmcbarZcp * super().D_VGG(mWBar, muBar) \
+                  - C_WpcbarZcm * C_WmcbarpcZ * super().D_VGG(mWBar, muBar) \
+                  - C_WpcbarmcA * C_WmcbarAcp * super().D_VGG(mWBar, muBar) \
+                  - C_WpcbarAcm * C_WmcbarpcA * super().D_VGG(mWBar, muBar) \
+                  - 1 / 2 * C_Zcbarpcm ** 2 * super().D_VGG(mZBar, muBar) \
+                  - 1 / 2 * C_Zcbarmcp ** 2 * super().D_VGG(mZBar, muBar)
 
-            SS = + 1 / 8 * C_h1h1h1h1 * GenericPotential3D().I_3(mh1Bar) ** 2 \
-                 + 1 / 8 * C_h2h2h2h2 * GenericPotential3D().I_3(mh2Bar) ** 2 \
-                 + 1 / 8 * C_GGGG * GenericPotential3D().I_3(mGBar) ** 2 \
-                 + 1 / 4 * C_h1h1h2h2 * GenericPotential3D().I_3(mh1Bar) * GenericPotential3D().I_3(mh2Bar) \
-                 + 1 / 4 * C_h1h1GG * GenericPotential3D().I_3(mh1Bar) * GenericPotential3D().I_3(mGBar) \
-                 + 1 / 4 * C_h2h2GG * GenericPotential3D().I_3(mGBar) * GenericPotential3D().I_3(mh2Bar) \
-                 + 1 / 2 * C_GpGmGpGm * GenericPotential3D().I_3(mGBar) ** 2 \
-                 + 1 / 2 * C_h1h1GpGm * GenericPotential3D().I_3(mh1Bar) * GenericPotential3D().I_3(mGBar) \
-                 + 1 / 2 * C_h2h2GpGm * GenericPotential3D().I_3(mh2Bar) * GenericPotential3D().I_3(mGBar) \
-                 + 1 / 2 * C_GGGpGm * GenericPotential3D().I_3(mGBar) ** 2
+            SS = + 1 / 8 * C_h1h1h1h1 * super().I_3(mh1Bar) ** 2 \
+                 + 1 / 8 * C_h2h2h2h2 * super().I_3(mh2Bar) ** 2 \
+                 + 1 / 8 * C_GGGG * super().I_3(mGBar) ** 2 \
+                 + 1 / 4 * C_h1h1h2h2 * super().I_3(mh1Bar) * super().I_3(mh2Bar) \
+                 + 1 / 4 * C_h1h1GG * super().I_3(mh1Bar) * super().I_3(mGBar) \
+                 + 1 / 4 * C_h2h2GG * super().I_3(mGBar) * super().I_3(mh2Bar) \
+                 + 1 / 2 * C_GpGmGpGm * super().I_3(mGBar) ** 2 \
+                 + 1 / 2 * C_h1h1GpGm * super().I_3(mh1Bar) * super().I_3(mGBar) \
+                 + 1 / 2 * C_h2h2GpGm * super().I_3(mh2Bar) * super().I_3(mGBar) \
+                 + 1 / 2 * C_GGGpGm * super().I_3(mGBar) ** 2
 
-            VS = (D - 1) * (1 / 4 * C_ZZh1h1 * GenericPotential3D().I_3(mh1Bar) * GenericPotential3D().I_3(mZBar)
-                            + 1 / 4 * C_ZZh2h2 * GenericPotential3D().I_3(mh2Bar) * GenericPotential3D().I_3(mZBar)
-                            + 1 / 4 * C_ZZGG * GenericPotential3D().I_3(mGBar) * GenericPotential3D().I_3(mZBar)
-                            + 1 / 2 * C_WpWmh1h1 * GenericPotential3D().I_3(mh1Bar) * GenericPotential3D().I_3(mWBar)
-                            + 1 / 2 * C_WpWmh2h2 * GenericPotential3D().I_3(mh2Bar) * GenericPotential3D().I_3(mWBar)
-                            + 1 / 2 * C_WpWmGG * GenericPotential3D().I_3(mGBar) * GenericPotential3D().I_3(mWBar)
-                            + 1 / 2 * C_ZZGpGm * GenericPotential3D().I_3(mGBar) * GenericPotential3D().I_3(mZBar)
-                            + C_WpWmGpGm * GenericPotential3D().I_3(mGBar) * GenericPotential3D().I_3(mWBar))
+            VS = (D - 1) * (1 / 4 * C_ZZh1h1 * super().I_3(mh1Bar) * super().I_3(mZBar)
+                            + 1 / 4 * C_ZZh2h2 * super().I_3(mh2Bar) * super().I_3(mZBar)
+                            + 1 / 4 * C_ZZGG * super().I_3(mGBar) * super().I_3(mZBar)
+                            + 1 / 2 * C_WpWmh1h1 * super().I_3(mh1Bar) * super().I_3(mWBar)
+                            + 1 / 2 * C_WpWmh2h2 * super().I_3(mh2Bar) * super().I_3(mWBar)
+                            + 1 / 2 * C_WpWmGG * super().I_3(mGBar) * super().I_3(mWBar)
+                            + 1 / 2 * C_ZZGpGm * super().I_3(mGBar) * super().I_3(mZBar)
+                            + C_WpWmGpGm * super().I_3(mGBar) * super().I_3(mWBar))
 
             VV = (
-                + 1 / 2 * C_WpWmWpWm * GenericPotential3D().D_VV(mWBar, mWBar) 
-                - C_WpWmZZ * GenericPotential3D().D_VV(mWBar, mZBar))
+                + 1 / 2 * C_WpWmWpWm * super().D_VV(mWBar, mWBar) 
+                - C_WpWmZZ * super().D_VV(mWBar, mZBar))
 
             V_2 = -(SSS + VSS + VVS + VVV + VGG + SS + VS + VV)
 
