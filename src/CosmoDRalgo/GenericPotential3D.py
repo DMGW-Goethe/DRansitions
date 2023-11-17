@@ -10,7 +10,7 @@ class GenericPotential3D(ABC,generic_potential.generic_potential):
     This class comprises all necessary functions to compute the effective potential in the 3d effective theory up to two-loops
     '''
     def __init__(self, order: int, RGscale: float):
-        self.order = order
+        self.LoopOrderPotential = order
         self.RGscale = RGscale
         """Initialisation
         """
@@ -38,23 +38,44 @@ class GenericPotential3D(ABC,generic_potential.generic_potential):
         return 1 / (4 * np.pi) ** 2 * (1 / 2 + np.log(Lambda / (m1 + m2 + m3)))
 
     def D_VSS(self, m1, m2, m3, Lambda):
-        return 1 / m3 ** 2 * ((-m1 ** 2 + m2 ** 2 + m3 ** 2) * self.I_3(m2) * self.I_3(m3) + (-m3 ** 2 * self.I_3(m2) + (m1 ** 2 - m2 ** 2 + m3 ** 2) * self.I_3(m3)) * self.I_3(m1) - (m1 ** 2 - m2 ** 2) ** 2 * self.D_SSS(m1, m2, 0, Lambda) + (m1 - m2 - m3) * (m1 + m2 - m3) * (m1 - m2 + m3) * (m1 + m2 + m3) * self.D_SSS(m1, m2, m3, Lambda))
+        return 1 / m3 ** 2 * (
+            + (-m1 ** 2 + m2 ** 2 + m3 ** 2) * self.I_3(m2) * self.I_3(m3) 
+            + (-m3 ** 2 * self.I_3(m2) + (m1 ** 2 - m2 ** 2 + m3 ** 2) * self.I_3(m3)) * self.I_3(m1) 
+            - (m1 ** 2 - m2 ** 2) ** 2 * self.D_SSS(m1, m2, 0, Lambda) 
+            + (m1 - m2 - m3) * (m1 + m2 - m3) * (m1 - m2 + m3) * (m1 + m2 + m3) * self.D_SSS(m1, m2, m3, Lambda))
 
     def D_VSS_1(self, m1, m2, Lambda):
         D = 3
-        return -(D - 1) * ((m1 ** 2 + m2 ** 2) * self.D_SSS(m1, m2, 0, Lambda) + self.I_3(m1) * self.I_3(m2))
+        return -(D - 1) * (
+            + (m1 ** 2 + m2 ** 2) * self.D_SSS(m1, m2, 0, Lambda) 
+            + self.I_3(m1) * self.I_3(m2))
 
     def D_VVS(self, m1, m2, m3, Lambda):
         D = 3
-        return 1 / (4 * m2 ** 2 * m3 ** 2) * (-m3 ** 2 * self.I_3(m1) * self.I_3(m2) + (-m2 ** 2 * self.I_3(m1) + (-m1 ** 2 + m2 ** 2 + m3 ** 2) * self.I_3(m2)) * self.I_3( m3) + m1 ** 4 * self.D_SSS(m1, 0, 0, Lambda) - (m2 ** 2 - m1 ** 2) ** 2 * self.D_SSS(m1, m2, 0,Lambda) - (m3 ** 2 - m1 ** 2) ** 2 * self.D_SSS(m1, m3, 0, Lambda) + ((m2 ** 2 - m1 ** 2) ** 2 + (- 2 * m1 ** 2 + (4 * D - 6) * m2 ** 2) * m3 ** 2 + m3 ** 4) * self.D_SSS(m1, m2, m3, Lambda))
+        return 1 / (4 * m2 ** 2 * m3 ** 2) * (
+            - m3 ** 2 * self.I_3(m1) * self.I_3(m2) 
+            + (-m2 ** 2 * self.I_3(m1) + (-m1 ** 2 + m2 ** 2 + m3 ** 2) * self.I_3(m2)) * self.I_3( m3) 
+            + m1 ** 4 * self.D_SSS(m1, 0, 0, Lambda) 
+            - (m2 ** 2 - m1 ** 2) ** 2 * self.D_SSS(m1, m2, 0,Lambda) 
+            - (m3 ** 2 - m1 ** 2) ** 2 * self.D_SSS(m1, m3, 0, Lambda) 
+            + ((m2 ** 2 - m1 ** 2) ** 2 + (- 2 * m1 ** 2 + (4 * D - 6) * m2 ** 2) * m3 ** 2 + m3 ** 4) * self.D_SSS(m1, m2, m3, Lambda))
 
     def D_VVS_1(self, m1, m2, Lambda):
         D = 3
-        return -(D - 1) / (4 * m2 ** 2) * ((m1 ** 2 - 3 * m2 ** 2) * self.D_SSS(m1, m2, 0, Lambda) - m1 ** 2 * self.D_SSS(m1, 0, 0,Lambda) + self.I_3(m1) * self.I_3(m2))
+        return -(D - 1) / (4 * m2 ** 2) * (
+            + (m1 ** 2 - 3 * m2 ** 2) * self.D_SSS(m1, m2, 0, Lambda) 
+            - m1 ** 2 * self.D_SSS(m1, 0, 0,Lambda) 
+            + self.I_3(m1) * self.I_3(m2))
 
     def D_VVV(self, m1, m2, Lambda):
         D = 3
-        return -self.I_3(m1) * self.I_3(m2) * (D * m1 ** 4 - (5 * D - 4) * m1 ** 2 * m2 ** 2 - D * (4 * D - 7) * m2 ** 4) / (2 * D * m1 ** 2 * m2 ** 2) + self.I_3(m1) ** 2 * (4 * (3 * D ** 2 - 4 * D - 1) * m1 ** 4 - 2 * D * (4 * D - 7) * m1 ** 2 * m2 ** 2 - D * m2 ** 4) / (4 * D * m1 ** 4) - self.D_SSS(m1, m2, 0, Lambda) * (m1 ** 2 - m2 ** 2) ** 2 * (m1 ** 4 + 2 * (2 * D - 3) * m1 ** 2 * m2 ** 2 + m2 ** 4) / (2 * m1 ** 4 * m2 ** 2) - self.D_SSS(m1, m1, m2, Lambda) * (4 * m1 ** 2 - m2 ** 2) * (4 * (D - 1) * m1 ** 4 + 4 * (2 * D - 3) * m1 ** 2 * m2 ** 2 + m2 ** 4) / (4 * m1 ** 4) + self.D_SSS(m2, 0, 0, Lambda) * m2 ** 6 / (4 * m1 ** 4) + self.D_SSS(m1, 0, 0, Lambda) * m1 ** 4 / (2 * m2 ** 2)
+        return (
+            - self.I_3(m1) * self.I_3(m2) * (D * m1 ** 4 - (5 * D - 4) * m1 ** 2 * m2 ** 2 - D * (4 * D - 7) * m2 ** 4) / (2 * D * m1 ** 2 * m2 ** 2) 
+            + self.I_3(m1) ** 2 * (4 * (3 * D ** 2 - 4 * D - 1) * m1 ** 4 - 2 * D * (4 * D - 7) * m1 ** 2 * m2 ** 2 - D * m2 ** 4) / (4 * D * m1 ** 4) 
+            - self.D_SSS(m1, m2, 0, Lambda) * (m1 ** 2 - m2 ** 2) ** 2 * (m1 ** 4 + 2 * (2 * D - 3) * m1 ** 2 * m2 ** 2 + m2 ** 4) / (2 * m1 ** 4 * m2 ** 2) 
+            - self.D_SSS(m1, m1, m2, Lambda) * (4 * m1 ** 2 - m2 ** 2) * (4 * (D - 1) * m1 ** 4 + 4 * (2 * D - 3) * m1 ** 2 * m2 ** 2 + m2 ** 4) / (4 * m1 ** 4) 
+            + self.D_SSS(m2, 0, 0, Lambda) * m2 ** 6 / (4 * m1 ** 4) 
+            + self.D_SSS(m1, 0, 0, Lambda) * m1 ** 4 / (2 * m2 ** 2))
 
     def D_VVV_1(self, m, Lambda):
         d = 3
@@ -110,14 +131,14 @@ class GenericPotential3D(ABC,generic_potential.generic_potential):
         msq, dof = particles 
         V = np.sum(dof*self.J_3(msq), axis=-1)
 
-        return V
+        return np.real(V)
 
-    # @abstractmethod
-    # def V2(self, particles, temperature: float):
-    #     """
-    #     Two loop effective potential
-    #     """
-    #     pass
+    @abstractmethod
+    def V2(self, particles, temperature: float):
+        """
+        Two loop effective potential
+        """
+        pass
 
     def Vtot(self, fields, temperature: float, include_radiation=True):
         """
@@ -145,9 +166,12 @@ class GenericPotential3D(ABC,generic_potential.generic_potential):
 
 
         particles = self.particleMassSq(fields,T)
-        V = self.V0(fields, T)
-        V += self.V1(particles, T)
-        V += self.V2(particles, T)
+        if self.LoopOrderPotential >= 0:
+            V = self.V0(fields, T)
+        if self.LoopOrderPotential >= 1:
+            V += self.V1(particles, T)
+        if self.LoopOrderPotential >= 2:
+            V += self.V2(fields, particles, T)
         # if include_radiation:
         #     V += self.PressureLO(particles, T)
         return T*np.real(V)

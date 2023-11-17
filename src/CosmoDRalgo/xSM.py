@@ -414,20 +414,37 @@ class xSM(GenericPotential3D):
         mZBarSq = 1 / 4 * (g3BarSq + g3PrimeBarSq) * phiBar ** 2
         mGBarSq = mPhi3BarSq + lambdaPhi3Bar * phiBar ** 2 + 1 / 2 * lambdaMix3Bar * sBar ** 2
 
-        massSq = np.column_stack((mh1BarSq, mh2BarSq, mGBarSq, mWBarSq, mZBarSq))
+        massSq = np.stack((mh1BarSq, mh2BarSq, mGBarSq, mWBarSq, mZBarSq), axis=-1)
         return massSq, degrees_of_freedom
 
 
-    def Vtot(self, fields, temperature: float):
+    def V0(self, fields, temperature: float):
+        '''
+        Tree-level part of the potential
+        '''
+        # TODO make own function for this
+        T = np.asanyarray(temperature)
+        PhiBar = fields[...,0]
+        Sbar = fields[...,1]
+
+
+        g3BarSq, g3PrimeBarSq, lambdaPhi3Bar, lambdaMix3Bar, lambdaS3Bar, mS3BarSq, mPhi3BarSq = self.Ultrasoft_params(T)
+
+        V = (
+            + 1 / 2 * mPhi3BarSq * PhiBar ** 2
+            + 1 / 4 * lambdaPhi3Bar * PhiBar ** 4
+            + 1 / 2 * mS3BarSq * Sbar ** 2
+            + 1 / 4 * lambdaS3Bar * Sbar ** 4 
+            + 1 / 4 * lambdaMix3Bar * PhiBar ** 2 * Sbar ** 2)
+        return V
+
+    def V2(self, fields, particles, temperature: float):
         '''
         3D Thermal effective potential up to two loops at the ultrasoft scale.
         This function returns T * Veff_3D, such that the output has mass dimension 4 and can directly be used for the
         computation of the phase transition parameters with CosmoTransitions.
         '''
         T = np.asanyarray(temperature)
-        fields = np.asanyarray(fields)
-        fields = fields/np.sqrt(T + 1e-100)
-
         PhiBar = fields[...,0]
         Sbar = fields[...,1]
 
@@ -436,168 +453,139 @@ class xSM(GenericPotential3D):
         mu3Bar = self.mu3Bar * T
         muBar = mu3Bar
         D = self.dim
-
-        mWBarSq = 1 / 4 * g3BarSq * PhiBar ** 2
-        mZBarSq = 1 / 4 * (g3BarSq + g3PrimeBarSq) * PhiBar ** 2
-        mGBarSq = mPhi3BarSq + lambdaPhi3Bar * PhiBar ** 2 + 1 / 2 * lambdaMix3Bar * Sbar ** 2
+        massSq,_ = particles 
 
         thetaBar = self.thetaBar
         ct = np.cos(thetaBar)
         st = np.sin(thetaBar)
 
-        mh1BarSq = 1 / 2 * ((6 * lambdaPhi3Bar * PhiBar ** 2 + 2 * mPhi3BarSq + lambdaMix3Bar * Sbar ** 2) * np.cos(
-            thetaBar) ** 2 + (lambdaMix3Bar * PhiBar ** 2 + 2 * mS3BarSq + 6 * lambdaS3Bar * Sbar ** 2) * np.sin(
-            thetaBar) ** 2 - 2 * lambdaMix3Bar * PhiBar * Sbar * np.sin(2 * thetaBar))
-        mh2BarSq = 1 / 2 * ((6 * lambdaPhi3Bar * PhiBar ** 2 + 2 * mPhi3BarSq + lambdaMix3Bar * Sbar ** 2) * np.sin(
-            thetaBar) ** 2 + (lambdaMix3Bar * PhiBar ** 2 + 2 * mS3BarSq + 6 * lambdaS3Bar * Sbar ** 2) * np.cos(
-            thetaBar) ** 2 + 2 * lambdaMix3Bar * PhiBar * Sbar * np.sin(2 * thetaBar))
-
-        mh1Bar = csqrt(mh1BarSq)
-        mh2Bar = csqrt(mh2BarSq)
-        mGBar = csqrt(mGBarSq)
-        mZBar = csqrt(mZBarSq)
-        mWBar = csqrt(mWBarSq)
+        mh1Bar = csqrt(massSq[...,0])
+        mh2Bar = csqrt(massSq[...,1])
+        mGBar = csqrt(massSq[...,2])
+        mWBar = csqrt(massSq[...,3])
+        mZBar = csqrt(massSq[...,4])
 
         '''
-        Tree-level part of the potential
-        # TODO make own function for this
+        Two-loop part of the potential
         '''
-        V_0 = (
-            + 1 / 2 * mPhi3BarSq * PhiBar ** 2
-            + 1 / 4 * lambdaPhi3Bar * PhiBar ** 4
-            + 1 / 2 * mS3BarSq * Sbar ** 2
-            + 1 / 4 * lambdaS3Bar * Sbar ** 4 
-            + 1 / 4 * lambdaMix3Bar * PhiBar ** 2 * Sbar ** 2)
+        C_h1h1h1h1 = -6 * (lambdaPhi3Bar * ct ** 4 + lambdaMix3Bar * ct ** 2 * st ** 2 + lambdaS3Bar * st ** 4)
+        C_h2h2h2h2 = -6 * (lambdaPhi3Bar * st ** 4 + lambdaMix3Bar * ct ** 2 * st ** 2 + lambdaS3Bar * ct ** 4)
+        C_GGGG = -6 * lambdaPhi3Bar
+        C_h1h1h2h2 = 1 / 4 * (-3 * lambdaPhi3Bar - lambdaMix3Bar - 3 * lambdaS3Bar + 3 * (
+                    lambdaPhi3Bar - lambdaMix3Bar + lambdaS3Bar) * np.cos(4 * thetaBar))
+        C_h1h1GG = C_h1h1GpGm = -2 * lambdaPhi3Bar * ct ** 2 - lambdaMix3Bar * st ** 2
+        C_h2h2GG = C_h2h2GpGm = -2 * lambdaPhi3Bar * st ** 2 - lambdaMix3Bar * ct ** 2
+        C_GpGmGpGm = -4 * lambdaPhi3Bar
+        C_GGGpGm = -2 * lambdaPhi3Bar
+        C_ZZh1h1 = -1 / 2 * (g3BarSq + g3PrimeBarSq) * ct ** 2
+        C_ZZh2h2 = -1 / 2 * (g3BarSq + g3PrimeBarSq) * st ** 2
+        C_ZZGG = -1 / 2 * (g3BarSq + g3PrimeBarSq)
+        C_WpWmh1h1 = -1 / 2 * g3BarSq * ct ** 2
+        C_WpWmh2h2 = -1 / 2 * g3BarSq * st ** 2
+        C_WpWmGG = C_WpWmGpGm = -1 / 2 * g3BarSq
+        C_ZZGpGm = -1 / 2 * (g3BarSq - g3PrimeBarSq) ** 2 / (g3BarSq + g3PrimeBarSq)
+        C_WpWmWpWm = -g3BarSq
+        C_WpWmZZ = g3BarSq ** 2 / (g3BarSq + g3PrimeBarSq)
+        C_h1h1h1 = -6 * PhiBar * lambdaPhi3Bar * ct ** 3 + 3 * lambdaMix3Bar * Sbar * ct ** 2 * st + 3 * lambdaMix3Bar * PhiBar * ct * st ** 2 + 6 * lambdaS3Bar * Sbar * st ** 3
+        C_h2h2h2 = -6 * PhiBar * lambdaPhi3Bar * st ** 3 - 3 * lambdaMix3Bar * Sbar * ct * st ** 2 - 3 * lambdaMix3Bar * PhiBar * ct ** 2 * st - 6 * lambdaS3Bar * Sbar * ct ** 3
+        C_h1GG = C_h1GpGm = -2 * PhiBar * lambdaPhi3Bar * ct + lambdaMix3Bar * Sbar * st
+        C_h1h1h2 = -lambdaMix3Bar * Sbar * ct ** 3 + 2 * PhiBar * (
+                    -3 * lambdaPhi3Bar + lambdaMix3Bar) * ct ** 2 * st + (
+                                2 * lambdaMix3Bar * Sbar - 6 * lambdaS3Bar * Sbar) * ct * st ** 2 - PhiBar * lambdaMix3Bar * st ** 3
+        C_h2h2h1 = -lambdaMix3Bar * Sbar * st ** 3 + 2 * PhiBar * (
+                    -3 * lambdaPhi3Bar + lambdaMix3Bar) * st ** 2 * ct + (
+                                2 * lambdaMix3Bar * Sbar - 6 * lambdaS3Bar * Sbar) * st * ct ** 2 - PhiBar * lambdaMix3Bar * ct ** 3
+        C_GGh2 = C_h2GpGm = -2 * PhiBar * lambdaPhi3Bar * st - lambdaMix3Bar * Sbar * ct
+        C_ZZh1 = -1 / 2 * (g3BarSq + g3PrimeBarSq) * PhiBar * ct
+        C_ZZh2 = -1 / 2 * (g3BarSq + g3PrimeBarSq) * PhiBar * st
+        C_WpWmh1 = -1 / 2 * g3BarSq * PhiBar * ct
+        C_WpWmh2 = -1 / 2 * g3BarSq * PhiBar * st
+        C_WmZGp = C_WpZGm = PhiBar / 2 * csqrt(g3BarSq) * g3PrimeBarSq / csqrt(g3BarSq + g3PrimeBarSq)
+        C_WmAGp = C_WpAGm = -PhiBar / 2 * csqrt(g3PrimeBarSq) * g3BarSq / csqrt(g3BarSq + g3PrimeBarSq)
+        C_h1GZ = -1j / 2 * csqrt(g3BarSq + g3PrimeBarSq) * ct
+        C_h2GZ = -1j / 2 * csqrt(g3BarSq + g3PrimeBarSq) * st
+        C_GpGmZ = 1 / 2 * (g3PrimeBarSq - g3BarSq) / csqrt(g3PrimeBarSq + g3BarSq)
+        C_GpGmA = -csqrt(g3BarSq) * csqrt(g3PrimeBarSq) / csqrt(g3PrimeBarSq + g3BarSq)
+        C_h1GpWm = 1 / 2 * csqrt(g3BarSq) * ct
+        C_h1GmWp = -C_h1GpWm
+        C_h2GpWm = 1 / 2 * csqrt(g3BarSq) * st
+        C_h2GmWp = -C_h2GpWm
+        C_GGpWm = C_GGmWp = -1j / 2 * csqrt(g3BarSq)
+        C_WpWmZ = g3BarSq / csqrt(g3BarSq + g3PrimeBarSq)
+        C_WpWmA = csqrt(g3PrimeBarSq) * csqrt(g3BarSq) / csqrt(g3BarSq + g3PrimeBarSq)
+        C_WpcbarmcZ = C_WmcbarZcp = -g3BarSq / csqrt(g3BarSq + g3PrimeBarSq)
+        C_WpcbarZcm = C_WmcbarpcZ = -C_WpcbarmcZ
+        C_WpcbarmcA = C_WmcbarAcp = -csqrt(g3BarSq) * csqrt(g3PrimeBarSq) / csqrt(g3BarSq + g3PrimeBarSq)
+        C_WpcbarAcm = C_WmcbarpcA = -C_WpcbarmcA
+        C_Zcbarpcm = -g3BarSq / csqrt(g3BarSq + g3PrimeBarSq)
+        C_Zcbarmcp = -C_Zcbarpcm
 
-        '''
-        One-loop part of the potential
-        # TODO make own function for this inherting from super
-        '''
-        V_1 = (
-            + 2 * (D - 1) * super().J_3(mWBarSq)
-            + (D - 1) * super().J_3(mZBarSq) 
-            + super().J_3(mh1BarSq) 
-            + super().J_3(mh2BarSq) 
-            + 3 * super().J_3(mGBarSq))
+        SSS = (
+            + 1 / 12 * C_h1h1h1 ** 2 * super().D_SSS(mh1Bar, mh1Bar, mh1Bar, muBar)
+            + 1 / 12 * C_h2h2h2 ** 2 * super().D_SSS(mh2Bar, mh2Bar, mh2Bar, muBar)
+            + 1 / 4 * C_h1GG ** 2 * super().D_SSS(mh1Bar, mGBar, mGBar, muBar)
+            + 1 / 4 * C_h1h1h2 ** 2 * super().D_SSS(mh1Bar, mh1Bar, mh2Bar, muBar)
+            + 1 / 4 * C_h2h2h1 ** 2 * super().D_SSS(mh2Bar, mh2Bar, mh1Bar, muBar)
+            + 1 / 4 * C_GGh2 ** 2 * super().D_SSS(mGBar, mGBar, mh2Bar, muBar)
+            + 1 / 2 * C_h1GpGm ** 2 * super().D_SSS(mh1Bar, mGBar, mGBar, muBar)
+            + 1 / 2 * C_h2GpGm ** 2 * super().D_SSS(mh2Bar, mGBar, mGBar, muBar))
 
-        if self.LoopOrderPotential == 0:
-            return T*V_0
-        elif self.LoopOrderPotential == 1:
-            return T*(V_0 + V_1)
-        elif self.LoopOrderPotential == 2:
-            '''
-            Two-loop part of the potential
-            '''
-            C_h1h1h1h1 = -6 * (lambdaPhi3Bar * ct ** 4 + lambdaMix3Bar * ct ** 2 * st ** 2 + lambdaS3Bar * st ** 4)
-            C_h2h2h2h2 = -6 * (lambdaPhi3Bar * st ** 4 + lambdaMix3Bar * ct ** 2 * st ** 2 + lambdaS3Bar * ct ** 4)
-            C_GGGG = -6 * lambdaPhi3Bar
-            C_h1h1h2h2 = 1 / 4 * (-3 * lambdaPhi3Bar - lambdaMix3Bar - 3 * lambdaS3Bar + 3 * (
-                        lambdaPhi3Bar - lambdaMix3Bar + lambdaS3Bar) * np.cos(4 * thetaBar))
-            C_h1h1GG = C_h1h1GpGm = -2 * lambdaPhi3Bar * ct ** 2 - lambdaMix3Bar * st ** 2
-            C_h2h2GG = C_h2h2GpGm = -2 * lambdaPhi3Bar * st ** 2 - lambdaMix3Bar * ct ** 2
-            C_GpGmGpGm = -4 * lambdaPhi3Bar
-            C_GGGpGm = -2 * lambdaPhi3Bar
-            C_ZZh1h1 = -1 / 2 * (g3BarSq + g3PrimeBarSq) * ct ** 2
-            C_ZZh2h2 = -1 / 2 * (g3BarSq + g3PrimeBarSq) * st ** 2
-            C_ZZGG = -1 / 2 * (g3BarSq + g3PrimeBarSq)
-            C_WpWmh1h1 = -1 / 2 * g3BarSq * ct ** 2
-            C_WpWmh2h2 = -1 / 2 * g3BarSq * st ** 2
-            C_WpWmGG = C_WpWmGpGm = -1 / 2 * g3BarSq
-            C_ZZGpGm = -1 / 2 * (g3BarSq - g3PrimeBarSq) ** 2 / (g3BarSq + g3PrimeBarSq)
-            C_WpWmWpWm = -g3BarSq
-            C_WpWmZZ = g3BarSq ** 2 / (g3BarSq + g3PrimeBarSq)
-            C_h1h1h1 = -6 * PhiBar * lambdaPhi3Bar * ct ** 3 + 3 * lambdaMix3Bar * Sbar * ct ** 2 * st + 3 * lambdaMix3Bar * PhiBar * ct * st ** 2 + 6 * lambdaS3Bar * Sbar * st ** 3
-            C_h2h2h2 = -6 * PhiBar * lambdaPhi3Bar * st ** 3 - 3 * lambdaMix3Bar * Sbar * ct * st ** 2 - 3 * lambdaMix3Bar * PhiBar * ct ** 2 * st - 6 * lambdaS3Bar * Sbar * ct ** 3
-            C_h1GG = C_h1GpGm = -2 * PhiBar * lambdaPhi3Bar * ct + lambdaMix3Bar * Sbar * st
-            C_h1h1h2 = -lambdaMix3Bar * Sbar * ct ** 3 + 2 * PhiBar * (
-                        -3 * lambdaPhi3Bar + lambdaMix3Bar) * ct ** 2 * st + (
-                                   2 * lambdaMix3Bar * Sbar - 6 * lambdaS3Bar * Sbar) * ct * st ** 2 - PhiBar * lambdaMix3Bar * st ** 3
-            C_h2h2h1 = -lambdaMix3Bar * Sbar * st ** 3 + 2 * PhiBar * (
-                        -3 * lambdaPhi3Bar + lambdaMix3Bar) * st ** 2 * ct + (
-                                   2 * lambdaMix3Bar * Sbar - 6 * lambdaS3Bar * Sbar) * st * ct ** 2 - PhiBar * lambdaMix3Bar * ct ** 3
-            C_GGh2 = C_h2GpGm = -2 * PhiBar * lambdaPhi3Bar * st - lambdaMix3Bar * Sbar * ct
-            C_ZZh1 = -1 / 2 * (g3BarSq + g3PrimeBarSq) * PhiBar * ct
-            C_ZZh2 = -1 / 2 * (g3BarSq + g3PrimeBarSq) * PhiBar * st
-            C_WpWmh1 = -1 / 2 * g3BarSq * PhiBar * ct
-            C_WpWmh2 = -1 / 2 * g3BarSq * PhiBar * st
-            C_WmZGp = C_WpZGm = PhiBar / 2 * csqrt(g3BarSq) * g3PrimeBarSq / csqrt(g3BarSq + g3PrimeBarSq)
-            C_WmAGp = C_WpAGm = -PhiBar / 2 * csqrt(g3PrimeBarSq) * g3BarSq / csqrt(g3BarSq + g3PrimeBarSq)
-            C_h1GZ = -1j / 2 * csqrt(g3BarSq + g3PrimeBarSq) * ct
-            C_h2GZ = -1j / 2 * csqrt(g3BarSq + g3PrimeBarSq) * st
-            C_GpGmZ = 1 / 2 * (g3PrimeBarSq - g3BarSq) / csqrt(g3PrimeBarSq + g3BarSq)
-            C_GpGmA = -csqrt(g3BarSq) * csqrt(g3PrimeBarSq) / csqrt(g3PrimeBarSq + g3BarSq)
-            C_h1GpWm = 1 / 2 * csqrt(g3BarSq) * ct
-            C_h1GmWp = -C_h1GpWm
-            C_h2GpWm = 1 / 2 * csqrt(g3BarSq) * st
-            C_h2GmWp = -C_h2GpWm
-            C_GGpWm = C_GGmWp = -1j / 2 * csqrt(g3BarSq)
-            C_WpWmZ = g3BarSq / csqrt(g3BarSq + g3PrimeBarSq)
-            C_WpWmA = csqrt(g3PrimeBarSq) * csqrt(g3BarSq) / csqrt(g3BarSq + g3PrimeBarSq)
-            C_WpcbarmcZ = C_WmcbarZcp = -g3BarSq / csqrt(g3BarSq + g3PrimeBarSq)
-            C_WpcbarZcm = C_WmcbarpcZ = -C_WpcbarmcZ
-            C_WpcbarmcA = C_WmcbarAcp = -csqrt(g3BarSq) * csqrt(g3PrimeBarSq) / csqrt(g3BarSq + g3PrimeBarSq)
-            C_WpcbarAcm = C_WmcbarpcA = -C_WpcbarmcA
-            C_Zcbarpcm = -g3BarSq / csqrt(g3BarSq + g3PrimeBarSq)
-            C_Zcbarmcp = -C_Zcbarpcm
+        VSS = (
+            - 1 / 2 * C_h1GZ ** 2 * super().D_VSS(mh1Bar, mGBar, mZBar, muBar)
+            - 1 / 2 * C_h2GZ ** 2 * super().D_VSS(mh2Bar, mGBar, mZBar, muBar)
+            + 1 / 2 * C_GpGmZ ** 2 * super().D_VSS(mGBar, mGBar, mZBar, muBar)
+            + 1 / 2 * C_GpGmA ** 2 * super().D_VSS_1(mGBar, mGBar, muBar)
+            - C_h1GpWm * C_h1GmWp * super().D_VSS(mh1Bar, mGBar, mWBar, muBar)
+            - C_h2GpWm * C_h2GmWp * super().D_VSS(mh2Bar, mGBar, mWBar, muBar)
+            - C_GGpWm * C_GGmWp * super().D_VSS(mGBar, mGBar, mWBar, muBar))
 
-            SSS = + 1 / 12 * C_h1h1h1 ** 2 * super().D_SSS(mh1Bar, mh1Bar, mh1Bar, muBar) \
-                  + 1 / 12 * C_h2h2h2 ** 2 * super().D_SSS(mh2Bar, mh2Bar, mh2Bar, muBar) \
-                  + 1 / 4 * C_h1GG ** 2 * super().D_SSS(mh1Bar, mGBar, mGBar, muBar) \
-                  + 1 / 4 * C_h1h1h2 ** 2 * super().D_SSS(mh1Bar, mh1Bar, mh2Bar, muBar) \
-                  + 1 / 4 * C_h2h2h1 ** 2 * super().D_SSS(mh2Bar, mh2Bar, mh1Bar, muBar) \
-                  + 1 / 4 * C_GGh2 ** 2 * super().D_SSS(mGBar, mGBar, mh2Bar, muBar) \
-                  + 1 / 2 * C_h1GpGm ** 2 * super().D_SSS(mh1Bar, mGBar, mGBar, muBar) \
-                  + 1 / 2 * C_h2GpGm ** 2 * super().D_SSS(mh2Bar, mGBar, mGBar, muBar)
+        VVS = (
+            + 1 / 4 * C_ZZh1 ** 2 * super().D_VVS(mh1Bar, mZBar, mZBar, muBar)
+            + 1 / 4 * C_ZZh2 ** 2 * super().D_VVS(mh2Bar, mZBar, mZBar, muBar)
+            + 1 / 2 * C_WpWmh1 ** 2 * super().D_VVS(mh1Bar, mWBar, mWBar, muBar)
+            + 1 / 2 * C_WpWmh2 ** 2 * super().D_VVS(mh2Bar, mWBar, mWBar, muBar)
+            + C_WmZGp * C_WpZGm * super().D_VVS(mGBar, mWBar, mZBar, muBar)
+            + C_WmAGp * C_WpAGm * super().D_VVS_1(mGBar, mWBar, muBar))
 
-            VSS = - 1 / 2 * C_h1GZ ** 2 * super().D_VSS(mh1Bar, mGBar, mZBar, muBar) \
-                  - 1 / 2 * C_h2GZ ** 2 * super().D_VSS(mh2Bar, mGBar, mZBar, muBar) \
-                  + 1 / 2 * C_GpGmZ ** 2 * super().D_VSS(mGBar, mGBar, mZBar, muBar) \
-                  + 1 / 2 * C_GpGmA ** 2 * super().D_VSS_1(mGBar, mGBar, muBar) \
-                  - C_h1GpWm * C_h1GmWp * super().D_VSS(mh1Bar, mGBar, mWBar, muBar) \
-                  - C_h2GpWm * C_h2GmWp * super().D_VSS(mh2Bar, mGBar, mWBar, muBar) \
-                  - C_GGpWm * C_GGmWp * super().D_VSS(mGBar, mGBar, mWBar, muBar)
+        VVV = (
+            + 1 / 2 * C_WpWmZ ** 2 * super().D_VVV(mWBar, mZBar, muBar)
+            + 1 / 2 * C_WpWmA ** 2 * super().D_VVV_1(mWBar, muBar))
 
-            VVS = + 1 / 4 * C_ZZh1 ** 2 * super().D_VVS(mh1Bar, mZBar, mZBar, muBar) \
-                  + 1 / 4 * C_ZZh2 ** 2 * super().D_VVS(mh2Bar, mZBar, mZBar, muBar) \
-                  + 1 / 2 * C_WpWmh1 ** 2 * super().D_VVS(mh1Bar, mWBar, mWBar, muBar) \
-                  + 1 / 2 * C_WpWmh2 ** 2 * super().D_VVS(mh2Bar, mWBar, mWBar, muBar) \
-                  + C_WmZGp * C_WpZGm * super().D_VVS(mGBar, mWBar, mZBar, muBar) \
-                  + C_WmAGp * C_WpAGm * super().D_VVS_1(mGBar, mWBar, muBar)
+        VGG = (
+            - C_WpcbarmcZ * C_WmcbarZcp * super().D_VGG(mWBar, muBar)
+            - C_WpcbarZcm * C_WmcbarpcZ * super().D_VGG(mWBar, muBar)
+            - C_WpcbarmcA * C_WmcbarAcp * super().D_VGG(mWBar, muBar)
+            - C_WpcbarAcm * C_WmcbarpcA * super().D_VGG(mWBar, muBar)
+            - 1 / 2 * C_Zcbarpcm ** 2 * super().D_VGG(mZBar, muBar)
+            - 1 / 2 * C_Zcbarmcp ** 2 * super().D_VGG(mZBar, muBar))
 
-            VVV = 1 / 2 * C_WpWmZ ** 2 * super().D_VVV(mWBar, mZBar, muBar) \
-                  + 1 / 2 * C_WpWmA ** 2 * super().D_VVV_1(mWBar, muBar)
+        SS = (
+            + 1 / 8 * C_h1h1h1h1 * super().I_3(mh1Bar) ** 2
+            + 1 / 8 * C_h2h2h2h2 * super().I_3(mh2Bar) ** 2
+            + 1 / 8 * C_GGGG * super().I_3(mGBar) ** 2
+            + 1 / 4 * C_h1h1h2h2 * super().I_3(mh1Bar) * super().I_3(mh2Bar)
+            + 1 / 4 * C_h1h1GG * super().I_3(mh1Bar) * super().I_3(mGBar)
+            + 1 / 4 * C_h2h2GG * super().I_3(mGBar) * super().I_3(mh2Bar)
+            + 1 / 2 * C_GpGmGpGm * super().I_3(mGBar) ** 2
+            + 1 / 2 * C_h1h1GpGm * super().I_3(mh1Bar) * super().I_3(mGBar)
+            + 1 / 2 * C_h2h2GpGm * super().I_3(mh2Bar) * super().I_3(mGBar)
+            + 1 / 2 * C_GGGpGm * super().I_3(mGBar) ** 2)
 
-            VGG = -C_WpcbarmcZ * C_WmcbarZcp * super().D_VGG(mWBar, muBar) \
-                  - C_WpcbarZcm * C_WmcbarpcZ * super().D_VGG(mWBar, muBar) \
-                  - C_WpcbarmcA * C_WmcbarAcp * super().D_VGG(mWBar, muBar) \
-                  - C_WpcbarAcm * C_WmcbarpcA * super().D_VGG(mWBar, muBar) \
-                  - 1 / 2 * C_Zcbarpcm ** 2 * super().D_VGG(mZBar, muBar) \
-                  - 1 / 2 * C_Zcbarmcp ** 2 * super().D_VGG(mZBar, muBar)
+        VS = (
+            + 1 / 4 * C_ZZh1h1 * super().I_3(mh1Bar) * super().I_3(mZBar)
+            + 1 / 4 * C_ZZh2h2 * super().I_3(mh2Bar) * super().I_3(mZBar)
+            + 1 / 4 * C_ZZGG * super().I_3(mGBar) * super().I_3(mZBar)
+            + 1 / 2 * C_WpWmh1h1 * super().I_3(mh1Bar) * super().I_3(mWBar)
+            + 1 / 2 * C_WpWmh2h2 * super().I_3(mh2Bar) * super().I_3(mWBar)
+            + 1 / 2 * C_WpWmGG * super().I_3(mGBar) * super().I_3(mWBar)
+            + 1 / 2 * C_ZZGpGm * super().I_3(mGBar) * super().I_3(mZBar)
+            + C_WpWmGpGm * super().I_3(mGBar) * super().I_3(mWBar))
+        VS *= (D-1)
 
-            SS = + 1 / 8 * C_h1h1h1h1 * super().I_3(mh1Bar) ** 2 \
-                 + 1 / 8 * C_h2h2h2h2 * super().I_3(mh2Bar) ** 2 \
-                 + 1 / 8 * C_GGGG * super().I_3(mGBar) ** 2 \
-                 + 1 / 4 * C_h1h1h2h2 * super().I_3(mh1Bar) * super().I_3(mh2Bar) \
-                 + 1 / 4 * C_h1h1GG * super().I_3(mh1Bar) * super().I_3(mGBar) \
-                 + 1 / 4 * C_h2h2GG * super().I_3(mGBar) * super().I_3(mh2Bar) \
-                 + 1 / 2 * C_GpGmGpGm * super().I_3(mGBar) ** 2 \
-                 + 1 / 2 * C_h1h1GpGm * super().I_3(mh1Bar) * super().I_3(mGBar) \
-                 + 1 / 2 * C_h2h2GpGm * super().I_3(mh2Bar) * super().I_3(mGBar) \
-                 + 1 / 2 * C_GGGpGm * super().I_3(mGBar) ** 2
+        VV = (
+            + 1 / 2 * C_WpWmWpWm * super().D_VV(mWBar, mWBar) 
+            - C_WpWmZZ * super().D_VV(mWBar, mZBar))
 
-            VS = (D - 1) * (1 / 4 * C_ZZh1h1 * super().I_3(mh1Bar) * super().I_3(mZBar)
-                            + 1 / 4 * C_ZZh2h2 * super().I_3(mh2Bar) * super().I_3(mZBar)
-                            + 1 / 4 * C_ZZGG * super().I_3(mGBar) * super().I_3(mZBar)
-                            + 1 / 2 * C_WpWmh1h1 * super().I_3(mh1Bar) * super().I_3(mWBar)
-                            + 1 / 2 * C_WpWmh2h2 * super().I_3(mh2Bar) * super().I_3(mWBar)
-                            + 1 / 2 * C_WpWmGG * super().I_3(mGBar) * super().I_3(mWBar)
-                            + 1 / 2 * C_ZZGpGm * super().I_3(mGBar) * super().I_3(mZBar)
-                            + C_WpWmGpGm * super().I_3(mGBar) * super().I_3(mWBar))
+        V = -(SSS + VSS + VVS + VVV + VGG + SS + VS + VV)
 
-            VV = (
-                + 1 / 2 * C_WpWmWpWm * super().D_VV(mWBar, mWBar) 
-                - C_WpWmZZ * super().D_VV(mWBar, mZBar))
-
-            V_2 = -(SSS + VSS + VVS + VVV + VGG + SS + VS + VV)
-
-            return T*np.real(V_0 + V_1 + V_2)
+        return np.real(V)
