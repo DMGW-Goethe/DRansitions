@@ -1,8 +1,8 @@
-# CosmoDRalgo
+# DRansitions 
 
-[![license: GPLv3](https://img.shields.io/badge/license-GPLv3-brightgreen.svg)](https://github.com/DMGW-Goethe/CosmoDRalgo/blob/master/LICENSE)
+[![license: GPLv3](https://img.shields.io/badge/license-GPLv3-brightgreen.svg)](https://github.com/DMGW-Goethe/DRansitions/blob/master/LICENSE)
 
-**CosmoDRalgo**
+**DRansitions**
 interfaces output from
 the Dimensional Reduction algorithm 
 [DRalgo](https://github.com/DR-algo/DRalgo).
