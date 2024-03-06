@@ -5,7 +5,7 @@
 **DRansitions**
 interfaces output from
 the Dimensional Reduction algorithm 
-[DRalgo](https://github.com/DR-algo/DRalgo).
+[DRalgo](https://github.com/DR-algo/DRalgo)
 with
 [CosmoTransitions](https://github.com/clwainwright/CosmoTransitions).
 
