@@ -30,8 +30,7 @@ class GenericPotential3D(ABC,generic_potential.generic_potential):
             An object of the Model class.
         """
         # keep track of imaginary part
-        # TODO could keep dimensionality here alreayd 4d instead
-        # of fixing it later in the potential
+        # 3d units
         return -(msq + 0j)**(3/2) / (12.*np.pi)
 
     def D_SSS(self, m1, m2, m3, Lambda):
@@ -144,7 +143,7 @@ class GenericPotential3D(ABC,generic_potential.generic_potential):
         """
         pass
 
-    def Vtot(self, fields, temperature: float, include_radiation=True):
+    def Vtot(self, fields, temperature: float, include_radiation=False):
         """
         The total finite temperature effective potential.
 
@@ -177,6 +176,8 @@ class GenericPotential3D(ABC,generic_potential.generic_potential):
             V += self.V1(particles, T)
         if self.LoopOrderPotential >= 2:
             V += self.V2(fields, particles, T)
-        # if include_radiation:
-        #     V += self.PressureLO(particles, T)
+
+        if include_radiation:
+            # TODO
+            pass
         return T*np.real(V)
